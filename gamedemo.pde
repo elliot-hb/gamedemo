@@ -3,6 +3,10 @@ Map map;
 float playerX, playerY;
 // Velocity of player
 float playerVX, playerVY;
+//acceleration along x-axis
+float aX;
+//color of player
+color pC;
 // Speed at which the player moves
 float playerSpeed = 150;
 // The player is a circle and this is its radius
@@ -10,6 +14,10 @@ float playerR = 10;
 // Position of the goal center
 // Will be set by restart
 float goalX=0, goalY=0;
+//give gravity
+float gravity = 0.5;
+//define the height of the floor
+int floorHeight;
 // Whether to illustrate special functions of class Map
 boolean showSpecialFunctions=false;
 
@@ -17,15 +25,46 @@ boolean showSpecialFunctions=false;
 // used for scrolling
 float screenLeftX, screenTopY;
 
+float levitationTimer=0;
+
 float time;
-int GAMEWAIT=0, GAMERUNNING=1, GAMEOVER=2, GAMEWON=3;
-int gameState;
+//int GAMEWAIT=0, GAMERUNNING=1, GAMEOVER=2, GAMEWON=3;
+//int gameState;
 
 PImage backgroundImg;
+PImage P;
 
+///////// Loads a set of numbered images
+// filenames is a relative filename with TWO 00s
+// e.g. images/fox-00.png. The function then tries
+// to load images/fox-00.png, images/fox-01.png, ..
+// as long as these files exist.
+ArrayList<PImage> loadImages (String filePattern) {
+  // Count number of question marks
+  String qmString="";
+  while (filePattern.indexOf (qmString+"?")>=0) qmString += "?";
+  // The largest sequence of question marks is qmString
+  ArrayList<PImage> images = new ArrayList<PImage>();
+  int ctr=0;
+  do {
+    String fname = filePattern.replace(qmString, nf(ctr, qmString.length()));
+    InputStream input = createInput(fname);
+    if (input==null) break; 
+    PImage img = loadImage (fname);
+    if (img==null) break;
+    images.add(img);
+    ctr++;
+  } while (true); 
+  return images;
+}
+
+// Images of the player animation for different phases
+ArrayList<PImage> playerImgs;
+// phase of the animation (see finite state machine in slides)
+int playerPhase;
 void setup() {
   size( 500, 500 );
-  backgroundImg = loadImage ("images/fire.jpg");
+  backgroundImg = loadImage ("images/background.png"); // load the backgroundimage
   newGame ();
 }
 
@@ -49,45 +88,63 @@ void newGame () {
   time=0;
   playerVX = 0;
   playerVY = 0;
-  gameState = GAMEWAIT;
+  //gameState = GAMEWAIT;
 }
 
 void keyPressed() {
-  if ( keyCode == UP && playerVY == 0 ) {
-    playerVY = -playerSpeed;
-    playerVX = 0;
+  if ( keyCode == UP) {
+    playerVY=-200.0;
   }
-  else if ( keyCode == DOWN && playerVY == 0 ) {
-    playerVY = playerSpeed;
-    playerVX = 0;
-  }
-  else if ( keyCode == LEFT && playerVX == 0 ) {
+  if ( keyCode == LEFT ) {
     playerVX = -playerSpeed;
-    playerVY = 0;
   }
-  else if ( keyCode == RIGHT && playerVX == 0 ) {
+ if ( keyCode == RIGHT ) {
     playerVX = playerSpeed;
-    playerVY = 0;
-  }
-  else if ( keyCode == 'S' ) showSpecialFunctions = !showSpecialFunctions;
+  } else if ( keyCode == 'S' ) showSpecialFunctions = !showSpecialFunctions;
 }
-
+//void keyReleased() {
+//  if(playerVY < -6) playerVY = -6;
+//  playerVX = 0;
+//}
 
 void updatePlayer() {
   // update player
   float nextX = playerX + playerVX/frameRate, 
-  nextY = playerY + playerVY/frameRate;
-  if ( map.testTileInRect( nextX-playerR, nextY-playerR, 2*playerR, 2*playerR, "W" ) ) {
-    playerVX = -playerVX;
-    playerVY = -playerVY;
-    nextX = playerX;
-    nextY = playerY;
+    nextY = playerY + playerVY/frameRate;
+    playerVY += gravity*time;
+  if ( map.testTileInRect( nextX-playerR, nextY-playerR, 2*playerR, 2*playerR, "W" ) && playerVX !=0){
+playerVX=0;
   }
-  if ( map.testTileFullyInsideRect (nextX-playerR, nextY-playerR, 2*playerR, 2*playerR, "H_" ) ) {
-    gameState=GAMEOVER;
+  
+    if ( map.testTileInRect( nextX-playerR, nextY, 2*playerR, 2*playerR, "W" ))
+playerVY=0;
+  
+  
+  //if ( map.testTileFullyInsideRect (nextX-playerR, nextY-playerR, 2*playerR, 2*playerR, "H_") && levitationTimer==0 ) {
+  //  gameState=GAMEOVER;
+  //}
+  //if ( map.testTileFullyInsideRect (nextX-playerR, nextY-playerR, 2*playerR, 2*playerR, "E" ) ) {
+  //  gameState=GAMEWON;
+  //}
+  Map.TileReference tile =map.findTileInRect(nextX-playerR, nextY-playerR, 2*playerR, 2*playerR, "P");
+  if(tile!=null){
+    levitationTimer=5;
+    map.set(tile.x,tile.y,'F');
   }
-  if ( map.testTileFullyInsideRect (nextX-playerR, nextY-playerR, 2*playerR, 2*playerR, "E" ) ) {
-    gameState=GAMEWON;
+
+    if (map.testTileInRect(nextX-playerR, nextY-playerR, 2*playerR, 2*playerR, "P")) {
+    levitationTimer=5;
+    //map.set(,,,, "F");
+  }
+
+
+
+  levitationTimer-=1/frameRate;
+
+  fill(255);
+  text("Bonus time ; "+levitationTimer, 50, 50);
+  if (levitationTimer<0) {
+    levitationTimer=0;
   }
 
   playerX = nextX;
@@ -123,60 +180,55 @@ void drawMap() {
 }
 
 
-void drawPlayer() {
-  // draw player
-  noStroke();
-  fill(0, 255, 255);
-  ellipseMode(CENTER);
-  ellipse( playerX - screenLeftX, playerY - screenTopY, 2*playerR, 2*playerR );
+//void drawPlayer() {
+//  // draw player
+//  noStroke();
+//  fill(0, 255, 255);
+//  ellipseMode(CENTER);
+//  ellipse( playerX - screenLeftX, playerY - screenTopY, 2*playerR, 2*playerR );
 
-  // understanding this is optional, skip at first sight
-  if (showSpecialFunctions) {
-    // draw a line to the next hole   
-    Map.TileReference nextHole = map.findClosestTileInRect (playerX-100, playerY-100, 200, 200, "H");
-    stroke(255, 0, 255);
-    if (nextHole!=null) line (playerX-screenLeftX, playerY-screenTopY, 
-    nextHole.centerX-screenLeftX, nextHole.centerY-screenTopY);
+//  // understanding this is optional, skip at first sight
+//  if (showSpecialFunctions) {
+//    // draw a line to the next hole   
+//    Map.TileReference nextHole = map.findClosestTileInRect (playerX-100, playerY-100, 200, 200, "H");
+//    stroke(255, 0, 255);
+//    if (nextHole!=null) line (playerX-screenLeftX, playerY-screenTopY, 
+//      nextHole.centerX-screenLeftX, nextHole.centerY-screenTopY);
 
-    // draw line of sight to goal (until next wall) (understanding this is optional)
-    stroke(0, 255, 255);  
-    Map.TileReference nextWall = map.findTileOnLine (playerX, playerY, goalX, goalY, "W");
-    if (nextWall!=null) 
-      line (playerX-screenLeftX, playerY-screenTopY, nextWall.xPixel-screenLeftX, nextWall.yPixel-screenTopY);
-    else
-      line (playerX-screenLeftX, playerY-screenTopY, goalX-screenLeftX, goalY-screenTopY);
-  }
-}
+//    // draw line of sight to goal (until next wall) (understanding this is optional)
+//    stroke(0, 255, 255);  
+//    Map.TileReference nextWall = map.findTileOnLine (playerX, playerY, goalX, goalY, "W");
+//    if (nextWall!=null) 
+//      line (playerX-screenLeftX, playerY-screenTopY, nextWall.xPixel-screenLeftX, nextWall.yPixel-screenTopY);
+//    else
+//      line (playerX-screenLeftX, playerY-screenTopY, goalX-screenLeftX, goalY-screenTopY);
+//  }
+//}
 
 
 void drawText() { 
   textAlign(CENTER, CENTER);
   fill(0, 255, 0);  
   textSize(40);  
-  if (gameState==GAMEWAIT) text ("press space to start", width/2, height/2);
-  else if (gameState==GAMEOVER) text ("game over", width/2, height/2);
-  else if (gameState==GAMEWON) text ("won in "+ round(time) + " seconds", width/2, height/2);
+  //if (gameState==GAMEWAIT) text ("press space to start", width/2, height/2);
+  //else if (gameState==GAMEOVER) text ("game over", width/2, height/2);
+  //else if (gameState==GAMEWON) text ("won in "+ round(time) + " seconds", width/2, height/2);
 }
 
 
 void draw() {
-  if (gameState==GAMERUNNING) {
-    updatePlayer();
+  //if (gameState==GAMERUNNING) {
     time+=1/frameRate;
-  }
-  else if (keyPressed && key==' ') {
-    if (gameState==GAMEWAIT) gameState=GAMERUNNING;
-    else if (gameState==GAMEOVER || gameState==GAMEWON) newGame();
-  }
+    updatePlayer();
+  //} else if (keyPressed && key==' ') {
+    //if (gameState==GAMEWAIT) gameState=GAMERUNNING;
+    //else if (gameState==GAMEOVER || gameState==GAMEWON) newGame();
+  //}
   screenLeftX = playerX - width/2;
-  screenTopY  = (map.heightPixel() - height)/2;
+  screenTopY  = playerY - height/2;
 
   drawBackground();
   drawMap();
-  drawPlayer();
+  movePlayer();
   drawText();
 }
-
-
-
-
