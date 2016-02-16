@@ -1,3 +1,4 @@
+//test1
 Map map;
 // Position of player center in level coordinates
 float playerX, playerY;
@@ -34,7 +35,9 @@ float time;
 PImage backgroundImg;
 PImage P;
 
-///////// Loads a set of numbered images
+//test2
+
+////// Loads a set of numbered images
 // filenames is a relative filename with TWO 00s
 // e.g. images/fox-00.png. The function then tries
 // to load images/fox-00.png, images/fox-01.png, ..
